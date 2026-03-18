@@ -6,11 +6,13 @@ mod result;
 mod context;
 mod step;
 mod task_runner;
+pub mod sent;
 
 pub use result::StepResult;
 pub use context::StepContext;
 pub use step::Step;
 pub use task_runner::TaskRunner;
+pub use sent::{Sent, SentRecord, SENT_CREATE_SQL};
 
 #[cfg(test)]
 mod tests {
