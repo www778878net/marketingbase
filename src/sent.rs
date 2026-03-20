@@ -113,7 +113,8 @@ impl Sent {
 
     pub fn mlist(&self, caller: &str, limit: i32, summary: &str) -> Result<Vec<HashMap<String, Value>>, String> {
         self.check_caller("mlist", caller)?;
-        self.state.get_all(limit, caller, summary)
+        let sql = format!("SELECT * FROM marketing_sent ORDER BY senttime DESC LIMIT {}", limit);
+        self.state.do_get(&sql, &[], caller, summary)
     }
 
     /// 检查指定url是否已发送（去重）
