@@ -6,7 +6,8 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use database::{DataAudit, DataState, LocalDB, snowflake, DataSync};
+use database::{DataAudit, DataState, LocalDB, TableConfig};
+use base::upinfo::UpInfo;
 
 /// marketing_sent 表建表 SQL (SQLite版本)
 pub const SENT_CREATE_SQL: &str = r#"
@@ -48,18 +49,16 @@ pub struct Sent {
 
 impl Sent {
     pub fn new() -> Self {
-        let db = LocalDB::new(None).expect("创建数据库失败");
+        let db = LocalDB::new(None, None).expect("创建数据库失败");
         let audit = DataAudit::new("marketing_sent");
 
-        db.execute(SENT_CREATE_SQL).expect("建表失败");
-        
-        if let Ok(false) = db.is_id_primary_key("marketing_sent") {
-            let _ = db.ensure_id_is_primary_key("marketing_sent");
-        }
+        db.ensure_table("marketing_sent", SENT_CREATE_SQL).expect("建表失败");
 
-        DataSync::init_tables(&db).expect("初始化同步表失败");
-
-        let state = DataState::with_db("marketing_sent", db.clone());
+        let config = TableConfig {
+            name: "marketing_sent".to_string(),
+            ..Default::default()
+        };
+        let state = DataState::from_config(&config);
 
         Self { db, audit, state }
     }
@@ -84,7 +83,7 @@ impl Sent {
         self.check_caller("m_save", caller)?;
         
         let now = chrono::Utc::now().to_rfc3339();
-        let id = snowflake::next_id_string();
+        let id = UpInfo::new_id();
         
         record.insert("id".to_string(), Value::String(id.clone()));
         record.insert("uptime".to_string(), Value::String(now));
