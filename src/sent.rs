@@ -133,6 +133,23 @@ impl Sent {
         Ok(false)
     }
 
+    /// 检查指定url模式是否已发送（LIKE查询）
+    pub fn is_sent_by_url_pattern(&self, pattern: &str) -> Result<bool, String> {
+        let sql = format!(
+            "SELECT COUNT(*) as cnt FROM marketing_sent WHERE url LIKE '{}'",
+            pattern.replace("'", "''")
+        );
+        let results = self.db.query(&sql, &[])?;
+        
+        if let Some(row) = results.first() {
+            if let Some(cnt_val) = row.get("cnt") {
+                let cnt: i64 = serde_json::from_value(cnt_val.clone()).unwrap_or(0);
+                return Ok(cnt > 0);
+            }
+        }
+        Ok(false)
+    }
+
     /// 获取今天的已发送记录
     pub fn get_today_sent(&self, platform: &str) -> Result<Vec<HashMap<String, Value>>, String> {
         let today = chrono::Local::now().format("%Y-%m-%d").to_string();
