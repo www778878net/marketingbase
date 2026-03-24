@@ -49,7 +49,7 @@ pub struct Sent {
 
 impl Sent {
     pub fn new() -> Self {
-        let db = LocalDB::new(None, None).expect("创建数据库失败");
+        let db = LocalDB::new(None).expect("创建数据库失败");
         let audit = DataAudit::new("marketing_sent");
 
         db.ensure_table("marketing_sent", SENT_CREATE_SQL).expect("建表失败");
