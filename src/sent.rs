@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use database::{DataAudit, DataState, LocalDB, TableConfig};
+use datastate::{DataAudit, DataState, LocalDB, TableConfig};
 use base::upinfo::UpInfo;
 
 /// marketing_sent 表建表 SQL (SQLite版本)
@@ -52,6 +52,8 @@ impl Sent {
         let db = LocalDB::new(None).expect("创建数据库失败");
         let audit = DataAudit::new("marketing_sent");
 
+        // 初始化系统表（sys_sql, sys_warn 等）
+        db.init_system_tables().expect("初始化系统表失败");
         db.ensure_table("marketing_sent", SENT_CREATE_SQL).expect("建表失败");
 
         let config = TableConfig {
