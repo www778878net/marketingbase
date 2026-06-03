@@ -49,12 +49,15 @@ pub struct Sent {
 
 impl Sent {
     pub fn new() -> Self {
+        let rt = tokio::runtime::Runtime::new().expect("创建tokio运行时失败");
+        let _guard = rt.enter();
+        
         let db = LocalDB::new(None).expect("创建数据库失败");
         let audit = DataAudit::new("marketing_sent");
 
         // 初始化系统表（sys_sql, sys_warn 等）
-        db.init_system_tables().expect("初始化系统表失败");
-        db.ensure_table("marketing_sent", SENT_CREATE_SQL).expect("建表失败");
+        tokio::runtime::Handle::current().block_on(db.init_system_tables()).expect("初始化系统表失败");
+        tokio::runtime::Handle::current().block_on(db.ensure_table("marketing_sent", SENT_CREATE_SQL)).expect("建表失败");
 
         let config = TableConfig {
             name: "marketing_sent".to_string(),
@@ -90,7 +93,7 @@ impl Sent {
         record.insert("id".to_string(), Value::String(id.clone()));
         record.insert("uptime".to_string(), Value::String(now));
         
-        self.state.m_save(record, caller, summary)
+        tokio::runtime::Handle::current().block_on(self.state.m_save(record, caller, summary))
     }
 
     pub fn m_update(&self, id: &str, record: &mut HashMap<String, Value>, caller: &str, summary: &str) -> Result<bool, String> {
@@ -99,23 +102,23 @@ impl Sent {
         let now = chrono::Utc::now().to_rfc3339();
         record.insert("uptime".to_string(), Value::String(now));
         
-        self.state.m_update(id, record, caller, summary)
+        tokio::runtime::Handle::current().block_on(self.state.m_update(id, record, caller, summary))
     }
 
     pub fn m_del(&self, id: &str, caller: &str, summary: &str) -> Result<bool, String> {
         self.check_caller("m_del", caller)?;
-        self.state.m_del(id, caller, summary)
+        tokio::runtime::Handle::current().block_on(self.state.m_del(id, caller, summary))
     }
 
     pub fn getone(&self, id: &str, caller: &str, summary: &str) -> Result<Option<HashMap<String, Value>>, String> {
         self.check_caller("getone", caller)?;
-        self.state.get_one(id, caller, summary)
+        tokio::runtime::Handle::current().block_on(self.state.get_one(id, caller, summary))
     }
 
     pub fn mlist(&self, caller: &str, limit: i32, summary: &str) -> Result<Vec<HashMap<String, Value>>, String> {
         self.check_caller("mlist", caller)?;
         let sql = format!("SELECT * FROM marketing_sent ORDER BY senttime DESC LIMIT {}", limit);
-        self.state.do_get(&sql, &[], caller, summary)
+        tokio::runtime::Handle::current().block_on(self.state.do_get(&sql, vec![], caller, summary))
     }
 
     /// 检查指定url是否已发送（去重）
@@ -124,7 +127,7 @@ impl Sent {
             "SELECT COUNT(*) as cnt FROM marketing_sent WHERE url = '{}'",
             url.replace("'", "''")
         );
-        let results = self.db.query(&sql, &[])?;
+        let results = tokio::runtime::Handle::current().block_on(self.db.query(&sql, &[]))?;
         
         if let Some(row) = results.first() {
             if let Some(cnt_val) = row.get("cnt") {
@@ -141,7 +144,7 @@ impl Sent {
             "SELECT COUNT(*) as cnt FROM marketing_sent WHERE url LIKE '{}'",
             pattern.replace("'", "''")
         );
-        let results = self.db.query(&sql, &[])?;
+        let results = tokio::runtime::Handle::current().block_on(self.db.query(&sql, &[]))?;
         
         if let Some(row) = results.first() {
             if let Some(cnt_val) = row.get("cnt") {
@@ -160,7 +163,7 @@ impl Sent {
             platform.replace("'", "''"),
             today
         );
-        self.db.query(&sql, &[])
+        tokio::runtime::Handle::current().block_on(self.db.query(&sql, &[]))
     }
 
     /// 记录已发送
@@ -191,7 +194,7 @@ mod tests {
     #[test]
     fn test_sent_create() {
         let sent = Sent::new();
-        assert!(sent.db.table_exists("marketing_sent").unwrap_or(false));
+        assert!(tokio::runtime::Handle::current().block_on(sent.db.table_exists("marketing_sent")).unwrap_or(false));
     }
 
     #[test]
